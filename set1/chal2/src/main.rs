@@ -1,7 +1,7 @@
 extern crate hex;
 use hex::{encode, decode};
 
-fn xor(x: Vec<u8>, y: Vec<u8>) -> Vec<u8> {
+fn xor(x: &Vec<u8>, y: &Vec<u8>) -> Vec<u8> {
     assert_eq!(x.len(), y.len());
     let mut xor: Vec<u8> = Vec::new();
     for i in 0..x.len() {
@@ -18,7 +18,7 @@ fn main() {
     let decoded_hex2 = decode(hex2)
         .expect("Invalid hex string");
     let xor = encode(
-        xor(decoded_hex1, decoded_hex2)
+        xor(&decoded_hex1, &decoded_hex2)
     );
     assert_eq!(
         xor,
