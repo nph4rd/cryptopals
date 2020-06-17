@@ -3,7 +3,7 @@ use hex::decode;
 use std::str;
 use std::collections::HashMap;
 
-const CHARS: [char; 3] = ['a', 'b', 'c'];
+const CHARS: [char; 27] = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', ' '];
 
 struct Candidate {
     plaintext: String,
