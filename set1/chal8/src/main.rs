@@ -1,26 +1,13 @@
 extern crate hex;
 extern crate openssl;
-use hex::decode;
-use std::error::Error;
+use hex::{decode, encode};
 use openssl::symm::Cipher;
 use std::collections::HashSet;
 use std::hash::Hash;
-
-fn read_csv(
-    filepath: &str
-) -> Result<Vec<String>, Box<dyn Error>> {
-    let file = std::fs::File::open(filepath)
-        .expect("No such file or directory");
-    let mut rdr = csv::ReaderBuilder::new()
-        .has_headers(false)
-        .from_reader(file);
-    let mut ciphertexts: Vec<String> = Vec::new();
-    for result in rdr.records() {
-        let record = result?;
-        ciphertexts.push(record[0].to_string());
-    }
-    Ok(ciphertexts)
-}
+use std::fs::File;
+use std::io::BufRead;
+use std::io::BufReader;
+use std::path::Path;
 
 fn has_unique_elements<T>(iter: T) -> bool
 where
@@ -48,26 +35,24 @@ fn repeated_blocks(
             &ciphertext[(i * blocksize)..((i + 1) * blocksize)]
         );
     }
-    match has_unique_elements(blocks) {
-        false => Ok(true),
-        true => Ok(false),
+    match !has_unique_elements(blocks) {
+        false => Ok(false),
+        true => Ok(true),
     }
 }
 
 fn main() {
+    let path = Path::new("data/hex_values.txt");
+    let file = File::open(&path).unwrap();
+    let reader = BufReader::new(file);
     let blocksize: usize = Cipher::aes_128_ecb().block_size();
-    let ciphertexts = read_csv("data/hex_values.csv");
-    match ciphertexts {
-        Ok(cs) => {
-            for c in cs.iter() {
-                let decoded_hex = decode(c)
-                    .expect("Invalid hex string");
-                if repeated_blocks(&decoded_hex, blocksize)
-                    .unwrap() {
-                        println!("{}", c);
-                }
-            }
-        },
-        Err(_) => panic!("Error while reading csv"),
+    let result = reader
+        .lines()
+        .map(|line| decode(line.unwrap()).unwrap())
+        .find(|line| repeated_blocks(line, blocksize).unwrap())
+        .map(|line| encode(line));
+    match result {
+        Some(s) => println!("{}", s),
+        None => println!("Did not find any results.")
     }
 }
