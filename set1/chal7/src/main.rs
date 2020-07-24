@@ -33,5 +33,8 @@ fn main() {
     decrypter
         .update(&ciphertext[..data_len], &mut plaintext)
         .unwrap();
+    decrypter
+        .finalize(&mut plaintext)
+        .unwrap();
     println!("{}", String::from_utf8(plaintext).unwrap());
 }
