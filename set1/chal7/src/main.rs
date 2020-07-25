@@ -30,11 +30,12 @@ fn main() {
     let block_size = Cipher::aes_128_ecb().block_size();
     let data_len = ciphertext.len();
     let mut plaintext = vec![0; data_len + block_size];
-    decrypter
+    let mut count = decrypter
         .update(&ciphertext[..data_len], &mut plaintext)
         .unwrap();
-    decrypter
-        .finalize(&mut plaintext)
+    count += decrypter
+        .finalize(&mut plaintext[count..])
         .unwrap();
+    plaintext.truncate(count);
     println!("{}", String::from_utf8(plaintext).unwrap());
 }
