@@ -17,12 +17,13 @@ fn decrypt_aes_128_ecb(
         None).unwrap();
     let data_len = ciphertext.len();
     let mut plaintext = vec![0; data_len + BLOCK_SIZE];
-    decrypter
+    let mut count = decrypter
         .update(&ciphertext[..data_len], &mut plaintext)
         .unwrap();
-    decrypter
-        .finalize(&mut plaintext)
+    count += decrypter
+        .finalize(&mut plaintext[count..])
         .unwrap();
+    plaintext.truncate(count);
     plaintext
 }
 
