@@ -10,5 +10,12 @@ fn pkcs7(message: &[u8], block_size: usize) -> Vec<u8> {
 fn main() {
     let message = b"YELLOW SUBMARINE";
     let padded_message = pkcs7(message, 20);
+    println!("{}", String::from_utf8(padded_message).unwrap());
+}
+
+#[test]
+fn test_padkcs7() {
+    let message = b"YELLOW SUBMARINE";
+    let padded_message = pkcs7(message, 20);
     assert_eq!(padded_message.as_slice(), b"YELLOW SUBMARINE\x04\x04\x04\x04");
 }
