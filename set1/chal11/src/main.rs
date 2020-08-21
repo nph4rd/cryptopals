@@ -154,7 +154,9 @@ fn repeated_blocks(
 
 
 fn main() {
-    for _ in 0..500 {
+    let mut count_ecb: usize = 0;
+    let mut count_cbc: usize = 0;
+    for _ in 0..1000 {
         let mes = [42; 16 * 4].to_vec();
         let prob = rand::thread_rng().gen::<f64>();
         let mut mode = CipherMode::CBC;
@@ -163,9 +165,13 @@ fn main() {
         }
         let e = encryption_oracle(mes, &mode);
         if repeated_blocks(&e, BLOCK_SIZE).unwrap() {
+            count_ecb += 1;
             assert_eq!(mode, CipherMode::ECB);
         } else {
+            count_cbc += 1;
             assert_eq!(mode, CipherMode::CBC);
         }
     }
+    println!("CBC: {}", count_cbc);
+    println!("ECB: {}", count_ecb);
 }
