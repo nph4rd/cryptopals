@@ -110,7 +110,8 @@ fn encrypt_aes_128_cbc(
             &key,
         );
         ciphertext.extend(current_block);
-        prev_block_plaintxt = &ciphertext[..BLOCK_SIZE];
+        prev_block_plaintxt = &ciphertext[(BLOCK_SIZE * i)..(BLOCK_SIZE * (i + 1))];
+        // prev_block_plaintxt = &ciphertext[..BLOCK_SIZE];
     }
     ciphertext
 }

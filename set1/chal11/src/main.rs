@@ -66,13 +66,15 @@ fn encrypt_aes_128_cbc(
     let split_plaintext = split_blocks(&plaintext, BLOCK_SIZE);
     let mut prev_block_plaintxt = iv;
     for i in 0..split_plaintext.len(){
+        // println!("{}", i);
+        // println!("{:?}", prev_block_plaintxt);
         let cipher_input = xor(&split_plaintext[i], &prev_block_plaintxt);
         let current_block = encrypt_aes_128_ecb(
             &cipher_input[..],
             &key,
         );
         ciphertext.extend(current_block);
-        prev_block_plaintxt = &ciphertext[..BLOCK_SIZE];
+        prev_block_plaintxt = &ciphertext[(BLOCK_SIZE * i)..(BLOCK_SIZE * (i + 1))];
     }
     ciphertext
 }
@@ -101,16 +103,17 @@ fn pkcs7(message: &[u8], block_size: usize) -> Vec<u8> {
     message
 }
 
-fn encryption_oracle(mut mes: Vec<u8>, mode: CipherMode) -> Vec<u8> {
+fn encryption_oracle(mut mes: Vec<u8>, mode: &CipherMode) -> Vec<u8> {
+    let mut rng = rand::thread_rng();
     mes = append_random_bytes(mes);
     mes = pkcs7(&mes, BLOCK_SIZE);
-    let key = rand::thread_rng().gen::<[u8; BLOCK_SIZE]>();
+    let key = rng.gen::<[u8; BLOCK_SIZE]>();
     match mode {
         CipherMode::ECB => {
             return encrypt_aes_128_ecb(&mes, &key)
         },
         CipherMode::CBC => {
-        let iv = rand::thread_rng().gen::<[u8; BLOCK_SIZE]>();
+        let iv = rng.gen::<[u8; BLOCK_SIZE]>();
         return encrypt_aes_128_cbc(&mes, &iv, &key);
         }
     }
@@ -142,24 +145,27 @@ fn repeated_blocks(
             &ciphertext[(i * blocksize)..((i + 1) * blocksize)]
         );
     }
+    // println!("{:?}", blocks);
     match !has_unique_elements(blocks) {
         false => Ok(false),
         true => Ok(true),
     }
 }
 
+
 fn main() {
-    let mes = b"YELLOW SUBMARINEYELLOW SUBMARINE".to_vec();
-    let prob = rand::thread_rng().gen::<f64>();
-    let mut mode = CipherMode::CBC;
-    if prob < 0.5 {
-        mode = CipherMode::ECB;
-    }
-    println!("{:?}", mode);
-    let e = encryption_oracle(mes, mode);
-    if repeated_blocks(&e, BLOCK_SIZE).unwrap() {
-        println!("{:?}", CipherMode::ECB);
-    } else {
-        println!("{:?}", CipherMode::CBC);
+    for _ in 0..500 {
+        let mes = [42; 16 * 4].to_vec();
+        let prob = rand::thread_rng().gen::<f64>();
+        let mut mode = CipherMode::CBC;
+        if prob < 0.5 {
+            mode = CipherMode::ECB;
+        }
+        let e = encryption_oracle(mes, &mode);
+        if repeated_blocks(&e, BLOCK_SIZE).unwrap() {
+            assert_eq!(mode, CipherMode::ECB);
+        } else {
+            assert_eq!(mode, CipherMode::CBC);
+        }
     }
 }
