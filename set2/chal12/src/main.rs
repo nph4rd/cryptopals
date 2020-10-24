@@ -1,7 +1,7 @@
 extern crate base64;
 use base64::decode;
 use openssl::symm::{Cipher, Mode, Crypter};
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 use std::hash::Hash;
 
 const BLOCK_SIZE: usize = 16;
@@ -49,13 +49,13 @@ fn encrypt_aes_128_ecb(
 /// Encryption oracle returns an ecnrypted message
 /// with AES-128 in ECB mode
 fn encryption_oracle_ecb(
-    mut mes: Vec<u8>,
+    mes: &mut Vec<u8>,
     key: &[u8],
 ) -> Vec<u8> {
     let mut decoded_pad = decode(&PAD_STRING).unwrap();
     mes.append(&mut decoded_pad);
-    mes = pkcs7(&mes, BLOCK_SIZE);
-    return encrypt_aes_128_ecb(&mes, &key);
+    let padded_mes = pkcs7(&mes, BLOCK_SIZE);
+    return encrypt_aes_128_ecb(&padded_mes, &key);
 }
 
 
@@ -105,7 +105,7 @@ fn detect_blocksize() -> usize {
     for bs in 2..100 {
         let mut mes = vec![42; bs * 2];
         mes.push(3);
-        let ciphertext = encryption_oracle_ecb(mes, &KEY);
+        let ciphertext = encryption_oracle_ecb(&mut mes, &KEY);
         match repeated_blocks(&ciphertext, bs) {
             Ok(true) => {
                 blocksize = bs;
@@ -118,41 +118,63 @@ fn detect_blocksize() -> usize {
 }
 
 
-/// Recover a byte with an artificially
-/// constructed message
-fn get_plaintext_byte(
-    mes: Vec<u8>,
-) -> u8 {
-    42
+/// Builds a hash-map from the known
+/// plaintext
+fn build_dict(
+    known_plaintext: &Vec<u8>,
+    blocksize: usize,
+) -> HashMap<Vec<u8>, u8> {
+    let mut dict: HashMap<Vec<u8>, u8> = HashMap::new();
+    for b in 0..=255 {
+        let mut mes = vec![42; blocksize * (known_plaintext.len() / blocksize + 1) - 1];
+        mes.drain(mes.len()-known_plaintext.len()..);
+        mes.extend(known_plaintext);
+        mes.push(b);
+        let step = known_plaintext.len() / blocksize * blocksize;
+        dict.insert(
+            encryption_oracle_ecb(&mut mes, &KEY)[
+                step..step + blocksize
+            ].to_vec(),
+            b
+        );
+    }
+    dict
 }
-
 
 /// Recover the full plaintext given an
 /// AES-128 ECB ecnrypted cipher
 fn get_plaintext(
-    ciphertext: Vec<u8>,
     blocksize: usize,
 ) -> String {
-    let mut plaintext: Vec<u8> = Vec::new();
-    for c in ciphertext {
-        let mut mes = vec![42; blocksize - 1];
-        mes.push(c);
-        let byte = get_plaintext_byte(mes);
-        plaintext.push(byte);
+    let mut plaintext: Vec<u8> = Vec::new(); 
+    let oracle_length = encryption_oracle_ecb(&mut vec![], &KEY).len();
+    for i in 0..oracle_length {
+        let dict = build_dict(&plaintext, blocksize);
+        let mut mes = vec![42; blocksize - i % blocksize - 1];
+        let step = i / blocksize * blocksize;
+        let target_cipher =  encryption_oracle_ecb(&mut mes, &KEY)[
+            step..step + blocksize
+        ].to_vec();
+        if dict.contains_key(&target_cipher) {
+            let byte = dict[&target_cipher];
+            plaintext.push(byte);
+        } else {
+            break
+        }
     }
     String::from_utf8(plaintext).unwrap()
 }
 
 
 /// Break the ECB
-fn break_ecb(
-    ciphertext: Vec<u8>
-) -> Result<String, String>{
+fn break_ecb() -> Result<String, String>{
     let blocksize = detect_blocksize();
     if blocksize == 0 {
         Err("ECB or blocksize could not be detected".to_owned())
     } else {
-        let plaintext = get_plaintext(ciphertext, blocksize);
+        println!("Detected blocksize: {}", blocksize);
+        println!("Recovering plaintext...");
+        let plaintext = get_plaintext(blocksize);
         Ok(plaintext)
     }
 }
@@ -164,14 +186,9 @@ fn test_detect_blocksize() {
 }
 
 fn main() {
-    // Decode secret string pad it and encrypt it with AES-ECB-128
-    // We'll use an arbitrary key.
-    let mut plaintext = decode(&PAD_STRING).unwrap();
-    plaintext = pkcs7(&plaintext, BLOCK_SIZE);
-    let ciphertext = encrypt_aes_128_ecb(&plaintext, &KEY);
-    let result = break_ecb(ciphertext);
+    let result = break_ecb();
     match result {
-        Ok(plaintext) => println!("Plaintext is: \n {}", plaintext),
+        Ok(plaintext) => println!("Plaintext is: \n{}", plaintext),
         Err(e) => println!("Error: {}", e),
     }
 }
