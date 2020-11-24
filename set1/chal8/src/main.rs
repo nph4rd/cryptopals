@@ -3,8 +3,8 @@ extern crate openssl;
 use hex::{decode, encode};
 use openssl::symm::Cipher;
 use std::collections::HashSet;
-use std::hash::Hash;
 use std::fs::File;
+use std::hash::Hash;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::path::Path;
@@ -18,22 +18,15 @@ where
     iter.into_iter().all(move |x| uniq.insert(x))
 }
 
-fn repeated_blocks(
-    ciphertext: &[u8],
-    blocksize: usize
-) -> Result<bool, String> {
+fn repeated_blocks(ciphertext: &[u8], blocksize: usize) -> Result<bool, String> {
     let c_len = ciphertext.len();
     if c_len % blocksize != 0 {
-        return Err(
-            "The length of the ciphertext must be a multiple of the blocksize".to_string()
-        )
+        return Err("The length of the ciphertext must be a multiple of the blocksize".to_string());
     }
     let num_blocks = ciphertext.len() / blocksize;
     let mut blocks: Vec<&[u8]> = Vec::with_capacity(num_blocks);
     for i in 0..num_blocks {
-        blocks.push(
-            &ciphertext[(i * blocksize)..((i + 1) * blocksize)]
-        );
+        blocks.push(&ciphertext[(i * blocksize)..((i + 1) * blocksize)]);
     }
     match !has_unique_elements(blocks) {
         false => Ok(false),
@@ -53,6 +46,6 @@ fn main() {
         .map(|line| encode(line));
     match result {
         Some(s) => println!("{}", s),
-        None => println!("Did not find any results.")
+        None => println!("Did not find any results."),
     }
 }

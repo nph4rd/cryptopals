@@ -1,9 +1,6 @@
 use hex::encode;
 
-fn vigenere(
-    plaintext: &str,
-    key: &str
-) -> String {
+fn vigenere(plaintext: &str, key: &str) -> String {
     let p_bytes = plaintext.as_bytes();
     let n = p_bytes.len();
     let k_bytes = key.as_bytes();

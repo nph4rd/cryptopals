@@ -1,6 +1,6 @@
 extern crate openssl;
+use openssl::symm::{Cipher, Crypter, Mode};
 use rand::Rng;
-use openssl::symm::{Cipher, Mode, Crypter};
 use std::collections::HashSet;
 use std::hash::Hash;
 
@@ -22,10 +22,7 @@ fn xor(x: &[u8], y: &[u8]) -> Vec<u8> {
     xor
 }
 
-fn split_blocks<'a>(
-    ciphertext: &'a [u8],
-    blocksize: usize,
-) -> Vec<&'a [u8]> {
+fn split_blocks<'a>(ciphertext: &'a [u8], blocksize: usize) -> Vec<&'a [u8]> {
     let num_blocks = ciphertext.len() / blocksize;
     let mut result: Vec<&[u8]> = Vec::with_capacity(num_blocks);
     for i in 0..num_blocks {
@@ -34,45 +31,29 @@ fn split_blocks<'a>(
     result
 }
 
-fn encrypt_aes_128_ecb(
-    plaintext: &[u8],
-    key: &[u8],
-) -> Vec<u8> {
-    let mut encrypter = Crypter::new(
-        Cipher::aes_128_ecb(),
-        Mode::Encrypt,
-        key,
-        None).unwrap();
+fn encrypt_aes_128_ecb(plaintext: &[u8], key: &[u8]) -> Vec<u8> {
+    let mut encrypter = Crypter::new(Cipher::aes_128_ecb(), Mode::Encrypt, key, None).unwrap();
     encrypter.pad(false);
     let data_len = plaintext.len();
     let mut ciphertext = vec![0; data_len + BLOCK_SIZE];
     let mut count = encrypter
         .update(&plaintext[..data_len], &mut ciphertext)
         .unwrap();
-    count += encrypter
-        .finalize(&mut ciphertext[count..])
-        .unwrap();
+    count += encrypter.finalize(&mut ciphertext[count..]).unwrap();
     ciphertext.truncate(count);
     ciphertext
 }
 
-fn encrypt_aes_128_cbc(
-    plaintext: &[u8],
-    iv: &[u8],
-    key: &[u8],
-) -> Vec<u8> {
+fn encrypt_aes_128_cbc(plaintext: &[u8], iv: &[u8], key: &[u8]) -> Vec<u8> {
     let plaintext_len = plaintext.len();
     let mut ciphertext: Vec<u8> = Vec::with_capacity(plaintext_len);
     let split_plaintext = split_blocks(&plaintext, BLOCK_SIZE);
     let mut prev_block_plaintxt = iv;
-    for i in 0..split_plaintext.len(){
+    for i in 0..split_plaintext.len() {
         // println!("{}", i);
         // println!("{:?}", prev_block_plaintxt);
         let cipher_input = xor(&split_plaintext[i], &prev_block_plaintxt);
-        let current_block = encrypt_aes_128_ecb(
-            &cipher_input[..],
-            &key,
-        );
+        let current_block = encrypt_aes_128_ecb(&cipher_input[..], &key);
         ciphertext.extend(current_block);
         prev_block_plaintxt = &ciphertext[(BLOCK_SIZE * i)..(BLOCK_SIZE * (i + 1))];
     }
@@ -97,7 +78,9 @@ fn append_random_bytes(mes: Vec<u8>) -> Vec<u8> {
 fn pkcs7(message: &[u8], block_size: usize) -> Vec<u8> {
     let mut message = message.to_vec();
     let mut padding_len = block_size - (message.len() % block_size);
-    if padding_len == 0 { padding_len = block_size};
+    if padding_len == 0 {
+        padding_len = block_size
+    };
     let pad = vec![padding_len as u8; padding_len as usize];
     message.extend(pad.iter());
     message
@@ -109,12 +92,10 @@ fn encryption_oracle(mut mes: Vec<u8>, mode: &CipherMode) -> Vec<u8> {
     mes = pkcs7(&mes, BLOCK_SIZE);
     let key = rng.gen::<[u8; BLOCK_SIZE]>();
     match mode {
-        CipherMode::ECB => {
-            return encrypt_aes_128_ecb(&mes, &key)
-        },
+        CipherMode::ECB => return encrypt_aes_128_ecb(&mes, &key),
         CipherMode::CBC => {
-        let iv = rng.gen::<[u8; BLOCK_SIZE]>();
-        return encrypt_aes_128_cbc(&mes, &iv, &key);
+            let iv = rng.gen::<[u8; BLOCK_SIZE]>();
+            return encrypt_aes_128_cbc(&mes, &iv, &key);
         }
     }
 }
@@ -128,22 +109,15 @@ where
     iter.into_iter().all(move |x| uniq.insert(x))
 }
 
-fn repeated_blocks(
-    ciphertext: &[u8],
-    blocksize: usize
-) -> Result<bool, String> {
+fn repeated_blocks(ciphertext: &[u8], blocksize: usize) -> Result<bool, String> {
     let c_len = ciphertext.len();
     if c_len % blocksize != 0 {
-        return Err(
-            "The length of the ciphertext must be a multiple of the blocksize".to_string()
-        )
+        return Err("The length of the ciphertext must be a multiple of the blocksize".to_string());
     }
     let num_blocks = ciphertext.len() / blocksize;
     let mut blocks: Vec<&[u8]> = Vec::with_capacity(num_blocks);
     for i in 0..num_blocks {
-        blocks.push(
-            &ciphertext[(i * blocksize)..((i + 1) * blocksize)]
-        );
+        blocks.push(&ciphertext[(i * blocksize)..((i + 1) * blocksize)]);
     }
     // println!("{:?}", blocks);
     match !has_unique_elements(blocks) {
@@ -151,7 +125,6 @@ fn repeated_blocks(
         true => Ok(true),
     }
 }
-
 
 fn main() {
     let mut count_ecb: usize = 0;
