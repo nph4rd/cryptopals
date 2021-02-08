@@ -9,6 +9,15 @@ fn parse(parameters: &str) -> Result<HashMap<String, String>, ParseError> {
     Ok(output_object)
 }
 
+fn profile_for(email_address: &str) -> String {
+    let email_address = &email_address.replace("&", "");
+    let email_address = &email_address.replace("=", "");
+    let mut result: String = "email=".to_owned();
+    result += email_address;
+    result += "&uid=10&role=user";
+    result
+}
+
 #[test]
 fn test_url_parsing() -> Result<(), ParseError> {
     let test_object = parse("foo=bar&baz=qux&zap=zazzle")?;
@@ -19,6 +28,17 @@ fn test_url_parsing() -> Result<(), ParseError> {
         "zazzle".to_owned()
     );
     Ok(())
+}
+
+#[test]
+fn test_profile_for() {
+    let test_object = profile_for("foo@bar.com");
+    assert_eq!(test_object, "email=foo@bar.com&uid=10&role=user".to_owned());
+    let test_object = profile_for("foo@bar.com&role=admin");
+    assert_eq!(
+        test_object,
+        "email=foo@bar.comroleadmin&uid=10&role=user".to_owned()
+    );
 }
 
 fn main() {
