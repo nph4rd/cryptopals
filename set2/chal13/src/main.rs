@@ -1,6 +1,6 @@
 use openssl::symm::{Cipher, Crypter, Mode};
 use std::collections::HashMap;
-use std::string::FromUtf8Error;
+use std::error::Error;
 use url::{ParseError, Url};
 
 const KEY: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -56,10 +56,14 @@ fn encrypt_profile(email_address: &str, key: &[u8]) -> Vec<u8> {
     encrypt_aes_128_ecb(profile.as_bytes(), key)
 }
 
-fn decrypt_profile(ciphertext: &[u8], key: &[u8]) -> Result<String, FromUtf8Error> {
+fn decrypt_and_parse_profile(
+    ciphertext: &[u8],
+    key: &[u8],
+) -> Result<HashMap<String, String>, Box<dyn Error>> {
     let plaintext = decrypt_aes_128_ecb(ciphertext, key);
     let plaintext = String::from_utf8(plaintext)?;
-    Ok(plaintext)
+    let profile = parse(&plaintext)?;
+    Ok(profile)
 }
 
 #[test]
@@ -86,11 +90,16 @@ fn test_profile_for() {
 }
 
 #[test]
-fn test_encrypt_decrypt_profile() -> Result<(), FromUtf8Error> {
-    let test_object = decrypt_profile(&encrypt_profile("foo@bar.com", &KEY), &KEY);
+fn test_encrypt_decrypt_profile() -> Result<(), Box<dyn Error>> {
+    let test_object = decrypt_and_parse_profile(&encrypt_profile("foo@bar.com", &KEY), &KEY)?;
     assert_eq!(
-        test_object.unwrap(),
-        "email=foo@bar.com&uid=10&role=user".to_owned()
+        test_object.get("email").unwrap().to_owned(),
+        "foo@bar.com".to_owned()
+    );
+    assert_eq!(test_object.get("uid").unwrap().to_owned(), "10".to_owned());
+    assert_eq!(
+        test_object.get("role").unwrap().to_owned(),
+        "user".to_owned()
     );
     Ok(())
 }
