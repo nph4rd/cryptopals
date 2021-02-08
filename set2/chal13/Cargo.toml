@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 url = "2.2.0"
+openssl = "0.10.29"
